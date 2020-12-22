@@ -22,8 +22,11 @@ class PDBAnalyzer:
     def __init__(self, pdb_path, bins_cnt) -> None:
         self.pdb_path = pdb_path
         self.traj = PDBAnalyzer.extract_traj(self.pdb_path)
-        self.xyz = self.traj.xyz[0]
+        smaller_xyz_why_dont_know = self.traj.xyz[0]
         self.bins_cnt = bins_cnt
+        self.xyz = np.array([(0.0, 0.0, 0.0) for _ in range(self.bins_cnt)])
+        for i in range(len(smaller_xyz_why_dont_know)):
+            self.xyz[i] = smaller_xyz_why_dont_know[i]
         self.dist_matrix = np.array([])
 
     def count_curve_dist_matrix(self):
