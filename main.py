@@ -1,11 +1,15 @@
 import math
 
+import numpy as np
+
 from PDBAnalyzer import PDBAnalyzer, heatmap
 import logging
 import cooler
 import matplotlib.pyplot as plt
 
-from PDBUtils import hist, sort_by_x, log_xy
+from PDBUtils import hist, sort_by_x, log_xy, pearson_hic_dist
+
+from sklearn.linear_model import LinearRegression
 
 
 def main():
@@ -19,6 +23,10 @@ def analyze_chr1(SOFT_NAME='3DMAX'):
     ratio, dist = chr1_scaled_dist_3dmax()
     hic = chr1_hic(filepath='chr/Rao2014-IMR90-MboI-allreps-filtered.500kb.cool')
 
+    factor = 0.8
+    logging.info(
+        f'Pearson coef: {pearson_hic_dist(np.array(hic)[:499][:499], (np.array(dist) * ratio)[:499][:499], factor)}')
+
     dist_xs = []
     hic_ys = []
     for i in range(499):
@@ -27,6 +35,12 @@ def analyze_chr1(SOFT_NAME='3DMAX'):
             hic_ys.append(hic[i][j])
 
     shrinked_ys = hist(dist_xs, hic_ys, BUCKETS_CNT)
+
+    plt.title(SOFT_NAME + ' x density')
+    plt.xlabel('3d dist mm')
+    plt.ylabel('count of points')
+    plt.hist(dist_xs)
+    plt.show()
 
     plt.title(SOFT_NAME + ' y(x) = hic(dist)')
     plt.xlabel('3d dist mm')
@@ -40,7 +54,21 @@ def analyze_chr1(SOFT_NAME='3DMAX'):
     plt.title(SOFT_NAME + ' ln( y(x) ) = ln( hic(dist) )')
     plt.xlabel('ln( 3d dist mm )')
     plt.ylabel('ln( hic )')
+
+    xs_linear = np.array(xs).reshape((-1, 1))
+    ys_linear = np.array(ys)
+    model: LinearRegression
+    model = LinearRegression().fit(xs_linear, ys_linear)
+    r_sq = model.score(xs_linear, ys_linear)
+    logging.info(SOFT_NAME + f' linear regression r_2:\n{r_sq}\n')
+    logging.info(SOFT_NAME + f' b0 (intercept):\n{model.intercept_}\n')
+    logging.info(SOFT_NAME + f' k (slope):\n{model.coef_}\n')
+
+    xs_ans = np.linspace(min(xs), max(xs), 100)
+    ys_ans = model.intercept_ + model.coef_[0] * xs_ans
+
     plt.plot(xs[:cut_size], ys[:cut_size], 'o', markersize=5)
+    plt.plot(xs_ans, ys_ans, color='orange', linewidth=3)
     plt.show()
 
 
@@ -50,9 +78,7 @@ def chr1_scaled_dist_3dmax():
     BINS_CNT = 499
 
     analyzer = PDBAnalyzer('pdb_files/' + file_name, BINS_CNT)
-    logging.info(f'pdb xyz\'s:\n{analyzer.xyz}\n')
     dist_mat = analyzer.count_curve_dist_matrix()
-    logging.info(f'distance matrix from 3d pdb curve:\n{dist_mat}\n')
     heatmap(dist_mat, plot_title='distance matrix from 3d pdb curve')
     curve_length = PDBAnalyzer.pdb_curve_length(dist_mat, BINS_CNT)
     logging.info(f'curve length (in pdb model scales)\n{curve_length}\n')

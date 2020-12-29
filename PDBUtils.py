@@ -1,4 +1,18 @@
 import math
+import numpy as np
+
+from Pearson import pearson
+
+
+def pearson_hic_dist(hic: np.ndarray, dist: np.ndarray, factor):
+    a, b = hic.shape
+    dist_theory = np.zeros(hic.shape)
+    for i in range(a):
+        for j in range(i + 1, b):
+            if hic[i][j] != 0:
+                dist_theory[i][j] = dist_theory[j][i] = 1 / (hic[i][j] ** factor)
+    # return np.corrcoef(dist, dist_theory)
+    return pearson(dist, dist_theory)
 
 
 def sort_by_x(xs, ys):
