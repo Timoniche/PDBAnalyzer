@@ -25,7 +25,7 @@ class PDBAnalyzer:
         smaller_xyz_why_dont_know = self.traj.xyz[0]
         self.bins_cnt = bins_cnt
         self.xyz = np.array([(0.0, 0.0, 0.0) for _ in range(self.bins_cnt)])
-        for i in range(len(smaller_xyz_why_dont_know)):
+        for i in range(min(len(smaller_xyz_why_dont_know), bins_cnt)):
             self.xyz[i] = smaller_xyz_why_dont_know[i]
         self.dist_matrix = np.array([])
 

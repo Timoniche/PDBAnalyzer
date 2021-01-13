@@ -1,7 +1,23 @@
 import math
 import numpy as np
+from sklearn.linear_model import LinearRegression
 
-from Pearson import pearson
+
+def mm_to_bp(mm):
+    return int(2939495.094814116 * float(mm))
+
+
+def bp_to_mm(bp):
+    return float(bp) / 2939495.094814116
+
+
+def linear_regression(xs, ys):
+    xs_linear = np.array(xs).reshape((-1, 1))
+    ys_linear = np.array(ys)
+    model: LinearRegression
+    model = LinearRegression().fit(xs_linear, ys_linear)
+    r_sq = model.score(xs_linear, ys_linear)
+    return model, r_sq
 
 
 def pearson_hic_dist(hic: np.ndarray, dist: np.ndarray, factor):
@@ -11,8 +27,7 @@ def pearson_hic_dist(hic: np.ndarray, dist: np.ndarray, factor):
         for j in range(i + 1, b):
             if hic[i][j] != 0:
                 dist_theory[i][j] = dist_theory[j][i] = 1 / (hic[i][j] ** factor)
-    # return np.corrcoef(dist, dist_theory)
-    return pearson(dist, dist_theory)
+    return np.corrcoef(dist.flatten(), dist_theory.flatten())[0, 1]
 
 
 def sort_by_x(xs, ys):
@@ -30,7 +45,7 @@ def log_xy(xs, ys, ignore_eps=1e-9):
     return xs_log, ys_log
 
 
-def hist(xs, ys, buckets_cnt=10):
+def shrink_ys_to_hist(xs, ys, buckets_cnt=10):
     max_x = max(xs)
     buckets = [(0, 0) for _ in range(buckets_cnt)]
     for i in range(len(xs)):

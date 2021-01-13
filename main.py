@@ -2,103 +2,88 @@ import math
 
 import numpy as np
 
+from LogListener import log_linear_regression
 from PDBAnalyzer import PDBAnalyzer, heatmap
 import logging
 import cooler
-import matplotlib.pyplot as plt
 
-from PDBUtils import hist, sort_by_x, log_xy, pearson_hic_dist
+from PDBUtils import shrink_ys_to_hist, sort_by_x, log_xy, pearson_hic_dist, bp_to_mm, linear_regression
 
-from sklearn.linear_model import LinearRegression
+from Plotter import plot_density, plot_hic_from_dist, plot_ln_hic_from_dist
 
 
 def main():
-    analyze_chr1()
+    analyze_chr_i(0)
 
 
-def analyze_chr1(SOFT_NAME='3DMAX'):
-    BUCKETS_CNT = 100
-
+def analyze_chr_i(i, SOFT_NAME='3DMax', buckets_cnt=1000, known_factor=-1):
     logging.basicConfig(filename='logs/analyzer.log', filemode='w', level=logging.INFO)
-    ratio, dist = chr1_scaled_dist_3dmax()
-    hic = chr1_hic(filepath='chr/Rao2014-IMR90-MboI-allreps-filtered.500kb.cool')
+    logging.info('\n' + SOFT_NAME + f' chr: {i + 1}\n')
 
-    factor = 0.8
-    logging.info(
-        f'Pearson coef: {pearson_hic_dist(np.array(hic)[:499][:499], (np.array(dist) * ratio)[:499][:499], factor)}')
+    hic, bins_cnt, bp = chr_i_hic(filepath='chr/Rao2014-IMR90-MboI-allreps-filtered.500kb.cool', i=i)
+
+    file_name = '3DMax_chr1.pdb'
+    len_mm = bp_to_mm(bp)
+    ratio, dist = chr1_scaled_dist_3dmax(bins_cnt=bins_cnt,
+                                         soft_name=SOFT_NAME,
+                                         file_name=file_name,
+                                         curve_len_mm=len_mm)
+
+    if known_factor != -1:
+        pearson = pearson_hic_dist(
+            hic=np.array(hic)[:bins_cnt][:bins_cnt],
+            dist=(np.array(dist) * ratio)[:bins_cnt][:bins_cnt],
+            factor=known_factor
+        )
+        logging.info(f'Pearson coef: {pearson}')
 
     dist_xs = []
     hic_ys = []
-    for i in range(499):
-        for j in range(i + 1, 499):
+    for i in range(bins_cnt):
+        for j in range(i + 1, bins_cnt):
             dist_xs.append(dist[i][j] * ratio)
             hic_ys.append(hic[i][j])
 
-    shrinked_ys = hist(dist_xs, hic_ys, BUCKETS_CNT)
+    shrinked_ys = shrink_ys_to_hist(dist_xs, hic_ys, buckets_cnt)
 
-    plt.title(SOFT_NAME + ' x density')
-    plt.xlabel('3d dist mm')
-    plt.ylabel('count of points')
-    plt.hist(dist_xs)
-    plt.show()
+    plot_density(soft_name=SOFT_NAME, file_name=file_name, xs=dist_xs, buckets_cnt=buckets_cnt)
 
-    plt.title(SOFT_NAME + ' y(x) = hic(dist)')
-    plt.xlabel('3d dist mm')
-    plt.ylabel('hic')
     xs, ys = sort_by_x(dist_xs, shrinked_ys)
-    cut_size = -1
-    plt.plot(xs[:cut_size], ys[:cut_size], 'o', markersize=5)
-    plt.show()
+    plot_hic_from_dist(soft_name=SOFT_NAME, file_name=file_name, xs=xs, ys=ys)
 
     xs, ys = log_xy(xs, ys)
-    plt.title(SOFT_NAME + ' ln( y(x) ) = ln( hic(dist) )')
-    plt.xlabel('ln( 3d dist mm )')
-    plt.ylabel('ln( hic )')
+    model, r_sq = linear_regression(xs, ys)
+    plot_ln_hic_from_dist(file_name=file_name, model=model, xs=xs, ys=ys, r_sq=r_sq, buckets_cnt=buckets_cnt)
 
-    xs_linear = np.array(xs).reshape((-1, 1))
-    ys_linear = np.array(ys)
-    model: LinearRegression
-    model = LinearRegression().fit(xs_linear, ys_linear)
-    r_sq = model.score(xs_linear, ys_linear)
-    logging.info(SOFT_NAME + f' linear regression r_2:\n{r_sq}\n')
-    logging.info(SOFT_NAME + f' b0 (intercept):\n{model.intercept_}\n')
-    logging.info(SOFT_NAME + f' k (slope):\n{model.coef_}\n')
-
-    xs_ans = np.linspace(min(xs), max(xs), 100)
-    ys_ans = model.intercept_ + model.coef_[0] * xs_ans
-
-    plt.plot(xs[:cut_size], ys[:cut_size], 'o', markersize=5)
-    plt.plot(xs_ans, ys_ans, color='orange', linewidth=3)
-    plt.show()
+    log_linear_regression(model=model, r_sq=r_sq, soft_name=SOFT_NAME)
 
 
-def chr1_scaled_dist_3dmax():
-    file_name = '3DMax_chr1_real.pdb'
-    CURVE_LEN_MM = 85
-    BINS_CNT = 499
-
-    analyzer = PDBAnalyzer('pdb_files/' + file_name, BINS_CNT)
+def chr1_scaled_dist_3dmax(bins_cnt, soft_name, file_name, curve_len_mm):
+    analyzer = PDBAnalyzer('pdb_files/' + soft_name + '/' + file_name, bins_cnt)
     dist_mat = analyzer.count_curve_dist_matrix()
-    heatmap(dist_mat, plot_title='distance matrix from 3d pdb curve')
-    curve_length = PDBAnalyzer.pdb_curve_length(dist_mat, BINS_CNT)
+    heatmap(dist_mat, plot_title='distance matrix from 3d pdb curve ' + file_name)
+    curve_length = PDBAnalyzer.pdb_curve_length(dist_mat, bins_cnt)
     logging.info(f'curve length (in pdb model scales)\n{curve_length}\n')
 
-    ratio = PDBAnalyzer.ratio_to_real_size(dist_mat, BINS_CNT, CURVE_LEN_MM)
+    ratio = PDBAnalyzer.ratio_to_real_size(dist_mat, bins_cnt, curve_len_mm)
     logging.info(f'ratio to real length [real_len / curve_len] is {ratio}\n')
 
     PDBAnalyzer.build_scaled_pdb(
-        PDBAnalyzer.extract_traj('pdb_files/' + file_name),
+        PDBAnalyzer.extract_traj('pdb_files/' + soft_name + '/' + file_name),
         ratio,
         file_name
     )
     return ratio, dist_mat
 
 
-def chr1_hic(filepath):
+def chr_i_hic(filepath, i):
     c = cooler.Cooler(filepath)
     bin_size = c.info['bin-size']
-    count_bins_chr1 = math.ceil(c.chromsizes[0] / bin_size)
-    return c.matrix(balance=False)[:count_bins_chr1, :count_bins_chr1]
+    count_bins_chr_i = math.ceil(c.chromsizes[i] / bin_size)
+    (left_bin_id, right_bin_id) = c.extent('chr' + str(i + 1))
+    return (c.matrix(balance=False)[left_bin_id:right_bin_id, left_bin_id:right_bin_id],
+            count_bins_chr_i,
+            c.chromsizes[i])
 
 
 if __name__ == '__main__':
