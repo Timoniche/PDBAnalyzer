@@ -72,13 +72,12 @@ class PDBAnalyzer:
         traj.save_pdb(filename=scaled_pdb_name)
 
 
-def analyze_chr_i(i, SOFT_NAME='3DMax', buckets_cnt=1000, known_factor=-1):
+def analyze_chr_i(i, file_name, SOFT_NAME='3DMax', buckets_cnt=1000, known_factor=-1):
     logging.basicConfig(filename='logs/analyzer.log', filemode='w', level=logging.INFO)
     logging.info('\n' + SOFT_NAME + f' chr: {i + 1}\n')
 
     hic, bins_cnt, bp = chr_i_hic(filepath='chr/Rao2014-IMR90-MboI-allreps-filtered.500kb.cool', i=i)
 
-    file_name = '3DMax_chr1.pdb'
     len_mm = bp_to_mm(bp)
     ratio, dist = chr_i_scaled_dist(bins_cnt=bins_cnt,
                                     soft_name=SOFT_NAME,
