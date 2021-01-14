@@ -1,6 +1,7 @@
 import math
 
 import cooler
+import numpy as np
 
 
 def chr_i_hic(filepath, i):
@@ -13,6 +14,15 @@ def chr_i_hic(filepath, i):
             c.chromsizes[i])
 
 
+# simba input
+def chr_i_hic_to_npy(filepath, i):
+    c = cooler.Cooler(filepath)
+    (left_bin_id, right_bin_id) = c.extent('chr' + str(i + 1))
+    mat = c.matrix(balance=False)[left_bin_id:right_bin_id, left_bin_id:right_bin_id]
+    np.save('npy_hic_inputs/chr' + str(i + 1) + '.npy', mat)
+
+
+# 3dmax input
 def chr_i_hic_to_txt_adj(filepath, i):
     hic_file = open('gen_adj_hics/chr' + str(i + 1) + '.txt', 'w')
     c = cooler.Cooler(filepath)

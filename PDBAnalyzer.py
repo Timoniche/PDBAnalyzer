@@ -116,7 +116,6 @@ def analyze_chr_i(i, file_name, SOFT_NAME='3DMax', buckets_cnt=1000, known_facto
 def chr_i_scaled_dist(bins_cnt, soft_name, file_name, curve_len_mm):
     analyzer = PDBAnalyzer('pdb_files/' + soft_name + '/' + file_name, bins_cnt)
     dist_mat = analyzer.count_curve_dist_matrix()
-    heatmap(dist_mat, plot_title='distance matrix from 3d pdb curve ' + file_name)
     curve_length = PDBAnalyzer.pdb_curve_length(dist_mat, bins_cnt)
     logging.info(f'curve length (in pdb model scales)\n{curve_length}\n')
 
@@ -128,4 +127,5 @@ def chr_i_scaled_dist(bins_cnt, soft_name, file_name, curve_len_mm):
         ratio,
         file_name
     )
+    heatmap(dist_mat * ratio, plot_title='distance matrix from 3d pdb curve ' + file_name)
     return ratio, dist_mat
