@@ -72,7 +72,8 @@ class PDBAnalyzer:
         traj.save_pdb(filename=scaled_pdb_name)
 
 
-def analyze_chr_i(i, file_name, SOFT_NAME='3DMax', buckets_cnt=1000, known_factor=-1):
+def analyze_chr_i(i, file_name, SOFT_NAME='3DMax', buckets_cnt=1000, known_factor=-1,
+                  dist_plot_on=True, dens_plot_on=True, hic_from_dist_plot_on=True, ln_hic_dist_plot_on=True):
     logging.basicConfig(filename='logs/analyzer.log', filemode='w', level=logging.INFO)
     logging.info('\n' + SOFT_NAME + f' chr: {i + 1}\n')
 
@@ -82,7 +83,8 @@ def analyze_chr_i(i, file_name, SOFT_NAME='3DMax', buckets_cnt=1000, known_facto
     ratio, dist = chr_i_scaled_dist(bins_cnt=bins_cnt,
                                     soft_name=SOFT_NAME,
                                     file_name=file_name,
-                                    curve_len_mm=len_mm)
+                                    curve_len_mm=len_mm,
+                                    dist_plot_on=dist_plot_on)
 
     if known_factor != -1:
         pearson = pearson_hic_dist(
@@ -101,19 +103,22 @@ def analyze_chr_i(i, file_name, SOFT_NAME='3DMax', buckets_cnt=1000, known_facto
 
     shrinked_ys = shrink_ys_to_hist(dist_xs, hic_ys, buckets_cnt)
 
-    plot_density(soft_name=SOFT_NAME, file_name=file_name, xs=dist_xs, buckets_cnt=buckets_cnt)
+    if dens_plot_on:
+        plot_density(soft_name=SOFT_NAME, file_name=file_name, xs=dist_xs, buckets_cnt=buckets_cnt)
 
     xs, ys = sort_by_x(dist_xs, shrinked_ys)
-    plot_hic_from_dist(soft_name=SOFT_NAME, file_name=file_name, xs=xs, ys=ys)
+    if hic_from_dist_plot_on:
+        plot_hic_from_dist(soft_name=SOFT_NAME, file_name=file_name, xs=xs, ys=ys)
 
     xs, ys = log_xy(xs, ys)
     model, r_sq = linear_regression(xs, ys)
-    plot_ln_hic_from_dist(file_name=file_name, model=model, xs=xs, ys=ys, r_sq=r_sq, buckets_cnt=buckets_cnt)
+    if ln_hic_dist_plot_on:
+        plot_ln_hic_from_dist(file_name=file_name, model=model, xs=xs, ys=ys, r_sq=r_sq, buckets_cnt=buckets_cnt)
 
     log_linear_regression(model=model, r_sq=r_sq, soft_name=SOFT_NAME)
 
 
-def chr_i_scaled_dist(bins_cnt, soft_name, file_name, curve_len_mm):
+def chr_i_scaled_dist(bins_cnt, soft_name, file_name, curve_len_mm, dist_plot_on=True):
     analyzer = PDBAnalyzer('pdb_files/' + soft_name + '/' + file_name, bins_cnt)
     dist_mat = analyzer.count_curve_dist_matrix()
     curve_length = PDBAnalyzer.pdb_curve_length(dist_mat, bins_cnt)
@@ -127,5 +132,6 @@ def chr_i_scaled_dist(bins_cnt, soft_name, file_name, curve_len_mm):
         ratio,
         file_name
     )
-    heatmap(dist_mat * ratio, plot_title='distance matrix from 3d pdb curve ' + file_name)
+    if dist_plot_on:
+        heatmap(dist_mat * ratio, plot_title='distance matrix from 3d pdb curve ' + file_name)
     return ratio, dist_mat

@@ -21,16 +21,20 @@ def plot_hic_from_dist(soft_name, file_name, xs, ys):
 
 def plot_ln_hic_from_dist(file_name, model, xs, ys, r_sq, buckets_cnt):
     plt.title(
-        file_name + ' ln(hic(dist)) ' + ' r_sq: {:.2f} '.format(r_sq) + ' k^-1: {:.2f}'.format(1.0 / model.coef_[0]))
+        file_name + ' ln(hic(dist)) ' + ' r_sq = {:.2f} '.format(r_sq) + ' -k^-1 = {:.2f}'.format(
+            -1.0 / model.coef_[0]) +
+        ' b = {:.2f}'.format(model.intercept_)
+    )
     plt.xlabel('ln( 3d dist mm )')
     plt.ylabel('ln( hic )')
     cut_size = -1
     xs_ans = np.linspace(min(xs), max(xs), 100)
     ys_ans = model.intercept_ + model.coef_[0] * xs_ans
     plt.plot(xs[:cut_size], ys[:cut_size], 'o', markersize=5)
-    plt.plot(xs_ans, ys_ans, color='orange', linewidth=3)
+    plt.plot(xs_ans, ys_ans, color='orange', linewidth=3, label="y=kx+b")
+    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
 
     counts, bins = np.histogram(xs, bins=buckets_cnt)
     scale = max(ys) / max(counts)
-    plt.hist(bins[:-1], bins, weights=scale*counts, alpha=0.2)
+    plt.hist(bins[:-1], bins, weights=scale * counts, alpha=0.2)
     plt.show()
